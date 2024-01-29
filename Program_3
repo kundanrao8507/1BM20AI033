@@ -1,0 +1,80 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.datasets import load_iris
+
+# Load Iris dataset
+iris = load_iris()
+X = iris.data
+y = iris.target.reshape(-1, 1)
+
+# One-hot encode the target variable for multi-class classification
+encoder = OneHotEncoder(sparse=False)
+y_onehot = encoder.fit_transform(y)
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_onehot, test_size=0.2, random_state=42)
+
+# Standardize the data
+scaler = StandardScaler()
+X_train = torch.from_numpy(scaler.fit_transform(X_train)).float()
+X_test = torch.from_numpy(scaler.transform(X_test)).float()
+y_train = torch.from_numpy(y_train).float()
+y_test = torch.from_numpy(y_test).float()
+
+# Define the neural network architecture
+class IrisModel(nn.Module):
+    def __init__(self):
+        super(IrisModel, self).__init__()
+        self.layer1 = nn.Linear(X_train.shape[1], 64)
+        self.layer2 = nn.Linear(64, 32)
+        self.layer3 = nn.Linear(32, 3)  # Multi-class classification with 3 classes
+        self.relu = nn.ReLU()
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = self.relu(self.layer1(x))
+        x = self.relu(self.layer2(x))
+        x = self.softmax(self.layer3(x))
+        return x
+
+model = IrisModel()
+
+# Define the loss function and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+# Train the model with Gradient Descent
+print("Training with Gradient Descent...")
+for epoch in range(100):
+    optimizer.zero_grad()
+    outputs = model(X_train)
+    loss = criterion(outputs, torch.max(y_train, 1)[1])
+    loss.backward()
+    optimizer.step()
+
+    # Compute accuracy
+    _, predicted = torch.max(outputs, 1)
+    correct = (predicted == torch.max(y_train, 1)[1]).float().sum()
+    accuracy = correct / len(y_train)
+    
+    print(f'Epoch {epoch + 1}/{10}, Accuracy: {accuracy.item()}')
+
+# Train the model with Stochastic Gradient Descent (SGD)
+print("\nTraining with Stochastic Gradient Descent (SGD)...")
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+for epoch in range(100):
+    optimizer.zero_grad()
+    outputs = model(X_train)
+    loss = criterion(outputs, torch.max(y_train, 1)[1])
+    loss.backward()
+    optimizer.step()
+
+    # Compute accuracy
+    _, predicted = torch.max(outputs, 1)
+    correct = (predicted == torch.max(y_train, 1)[1]).float().sum()
+    accuracy = correct / len(y_train)
+
+    print(f'Epoch {epoch + 1}/{50}, Accuracy: {accuracy.item()}')
